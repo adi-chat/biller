@@ -12,6 +12,7 @@ st.title("⚡ Biller")
 # ==========================================
 # SECTION 1: TAX & DISCOUNT INPUTS
 # ==========================================
+st.subheader("💰 Tax & Discount")
 col_tax, col_discount = st.columns(2)
 
 with col_tax:
@@ -39,7 +40,7 @@ st.markdown("---")
 # ==========================================
 # SECTION 2: ROSTER CONFIGURATION
 # ==========================================
-st.subheader("👥 Roster")
+st.subheader("👥 People")
 
 num_people = st.number_input(
     "Number of People", 
@@ -60,7 +61,6 @@ if use_custom_names:
     )
     parsed_names = [name.strip() for name in custom_names_raw.split(",") if name.strip()]
     
-    # Pad with generic identifiers if entered names are fewer than the total count
     people_pool = []
     for i in range(int(num_people)):
         if i < len(parsed_names):
@@ -81,26 +81,18 @@ with st.form(key="item_form", clear_on_submit=True):
     col_name, col_price = st.columns([2, 1])
     
     with col_name:
-        item_name = st.text_input("Item Name", placeholder="e.g., Chicken Tikka, Salad")
+        item_name = st.text_input("Item Name", placeholder="e.g., Chilli Chicken, Fried Rice")
     
     with col_price:
         item_price = st.number_input("Price (₹)", min_value=0.0, step=1.0, format="%.2f")
     
-    split_protocol = st.radio(
-        "Split Method", 
-        ["Split Equally", "Personalized"], 
-        horizontal=True
+    # Dynamic key forces the multiselect to refresh instantly if you change the roster size
+    chosen_consumers = st.multiselect(
+        "Who ate this? (Uncheck anyone who didn't share it)", 
+        options=people_pool,
+        default=people_pool,
+        key=f"consumers_select_{len(people_pool)}"
     )
-    
-    # Render selection box only if personalized logic is flagged
-    if split_protocol == "Personalized":
-        chosen_consumers = st.multiselect(
-            "Shared by:", 
-            options=people_pool,
-            default=people_pool
-        )
-    else:
-        chosen_consumers = people_pool
     
     submit_transaction = st.form_submit_button(label="Add to Bill")
 
@@ -109,7 +101,7 @@ if submit_transaction:
     if item_price <= 0:
         st.error("Price must be greater than ₹0.00")
     elif not chosen_consumers:
-        st.error("Select at least one person")
+        st.error("Select at least one person who shared this item!")
     else:
         transaction_payload = {
             "name": item_name.strip() if item_name.strip() else f"Item #{len(st.session_state['item_ledger']) + 1}",
