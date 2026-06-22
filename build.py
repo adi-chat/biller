@@ -78,13 +78,16 @@ st.markdown("---")
 st.subheader("🍽️ Add Items")
 
 with st.form(key="item_form", clear_on_submit=True):
-    col_name, col_price = st.columns([2, 1])
+    item_name = st.text_input("Item Name", placeholder="e.g., Chilli Chicken, Fried Rice")
     
-    with col_name:
-        item_name = st.text_input("Item Name", placeholder="e.g., Chilli Chicken, Fried Rice")
+    # 2-column layout for mobile-friendly input tracking
+    col_price, col_qty = st.columns(2)
     
     with col_price:
-        item_price = st.number_input("Price (₹)", min_value=0.0, step=1.0, format="%.2f")
+        item_price = st.number_input("Price per Unit (₹)", min_value=0.0, step=1.0, format="%.2f")
+        
+    with col_qty:
+        item_qty = st.number_input("Quantity", min_value=1, value=1, step=1)
     
     # Dynamic key forces the multiselect to refresh instantly if you change the roster size
     chosen_consumers = st.multiselect(
@@ -106,10 +109,11 @@ if submit_transaction:
         transaction_payload = {
             "name": item_name.strip() if item_name.strip() else f"Item #{len(st.session_state['item_ledger']) + 1}",
             "price": item_price,
+            "quantity": int(item_qty),
             "consumers": chosen_consumers
         }
         st.session_state["item_ledger"].append(transaction_payload)
-        st.success(f"Added {transaction_payload['name']}!")
+        st.success(f"Added {transaction_payload['name']} (x{transaction_payload['quantity']})!")
 
 st.markdown("---")
 
@@ -128,10 +132,12 @@ for index, record in enumerate(st.session_state["item_ledger"]):
     if not active_consumers:
         continue
         
-    base_value = record["price"]
+    base_unit_price = record["price"]
+    quantity = record.get("quantity", 1)
+    total_base_value = base_unit_price * quantity
     
     # Calculate compounded tax followed by discount
-    taxed_value = base_value * (1 + (tax_rate / 100))
+    taxed_value = total_base_value * (1 + (tax_rate / 100))
     net_final_value = taxed_value * (1 - (discount_rate / 100))
     
     per_capita_cost = net_final_value / len(active_consumers)
@@ -140,9 +146,9 @@ for index, record in enumerate(st.session_state["item_ledger"]):
         individual_balances[consumer] += per_capita_cost
         
     audit_table_data.append({
-        "Item": record["name"],
-        "Base (₹)": f"₹{base_value:.2f}",
-        "Final (₹)": f"₹{net_final_value:.2f}",
+        "Item": f"{record['name']} (x{quantity})",
+        "Base Total (₹)": f"₹{total_base_value:.2f}",
+        "Final Split (₹)": f"₹{net_final_value:.2f}",
         "Shared By": ", ".join(active_consumers)
     })
 
